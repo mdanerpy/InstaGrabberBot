@@ -74,7 +74,7 @@ def handle_message(message):
         output_path = os.path.join(DOWNLOAD_DIR, f"video_{unique_id}.%(ext)s")
         
         ydl_opts = {
-            'format': 'best',
+            'format': 'bestvideo[height<=720]+bestaudio/best[height<=720]/best',
             'outtmpl': output_path,
             'quiet': True,
             'no_warnings': True,
