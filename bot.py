@@ -4,28 +4,15 @@ from telebot import types
 import yt_dlp
 import uuid
 from datetime import datetime, time
-import pytz
 
 # ====== تنظیمات ======
 TOKEN = os.environ.get("BOT_TOKEN")  # از GitHub Secrets میخونه
 bot = telebot.TeleBot(TOKEN)
 
-# منطقه زمانی ایران
-IRAN_TZ = pytz.timezone("Asia/Tehran")
-
-# ساعات کاری
-WORK_START = time(12, 0)   # ۱۲ ظهر
-WORK_END = time(23, 59)    # ۱۲ شب
-
 # پوشه دانلود
 DOWNLOAD_DIR = "downloads"
 if not os.path.exists(DOWNLOAD_DIR):
     os.makedirs(DOWNLOAD_DIR)
-
-# ====== چک کردن ساعت کاری ======
-def is_working_hour():
-    now = datetime.now(IRAN_TZ).time()
-    return WORK_START <= now <= WORK_END
 
 # ====== هندلرها ======
 @bot.message_handler(commands=['start', 'help'])
