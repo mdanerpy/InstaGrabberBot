@@ -33,4 +33,5 @@ jobs:
       env:
         BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
         INSTA_COOKIES: ${{ secrets.INSTA_COOKIES }}
+        YT_COOKIES: ${{ secrets.YT_COOKIES }}
       run: python bot.py
