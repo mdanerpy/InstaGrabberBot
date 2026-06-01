@@ -1,13 +1,14 @@
 import os
 import sys
 import time
-import random
 import telebot
 from telebot import apihelper
 import yt_dlp
 import uuid
 
 TOKEN = os.environ.get("BOT_TOKEN")
+INSTA_COOKIES = os.environ.get("INSTA_COOKIES", "")
+
 apihelper.READ_TIMEOUT = 60
 apihelper.CONNECT_TIMEOUT = 30
 bot = telebot.TeleBot(TOKEN, threaded=False)
@@ -16,13 +17,16 @@ DOWNLOAD_DIR = "downloads"
 if not os.path.exists(DOWNLOAD_DIR):
     os.makedirs(DOWNLOAD_DIR)
 
-SUPPORTED_SITES = ["instagram.com", "youtube.com", "youtu.be", "tiktok.com", "twitter.com", "x.com"]
+# ساخت فایل کوکی از Secret
+COOKIE_FILE = "instagram_cookies.txt"
+if INSTA_COOKIES:
+    with open(COOKIE_FILE, "w") as f:
+        f.write(INSTA_COOKIES)
+    print("✅ کوکی اینستاگرام بارگذاری شد")
+else:
+    print("⚠️ کوکی اینستاگرام تنظیم نشده")
 
-# سرویس‌های واسطه اینستاگرام
-INSTA_PROXIES = [
-    "ddinstagram.com",
-    "igdownloader.app",
-]
+SUPPORTED_SITES = ["instagram.com", "youtube.com", "youtu.be", "tiktok.com", "twitter.com", "x.com"]
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -31,7 +35,7 @@ def send_welcome(message):
             "🎬 *InstaTubeGrabber Free Bot*\n\n"
             "سلام! 👋\n"
             "📷 اینستاگرام | ▶️ یوتیوب | 🎵 تیک‌تاک | 🐦 توییتر\n\n"
-            "💡 با سرویس‌های چرخشی برای دور زدن محدودیت",
+            "✅ با کوکی - بدون محدودیت!",
             parse_mode='Markdown'
         )
     except:
@@ -60,12 +64,6 @@ def handle_message(message):
         return
     
     try:
-        # 🔄 استفاده از سرویس واسطه برای اینستاگرام
-        if "instagram.com" in url:
-            proxy_service = random.choice(INSTA_PROXIES)
-            url = url.replace("instagram.com", proxy_service)
-            print(f"🔄 Using: {proxy_service}")
-        
         unique_id = str(uuid.uuid4())[:8]
         output_path = os.path.join(DOWNLOAD_DIR, f"video_{unique_id}.%(ext)s")
         
@@ -78,6 +76,10 @@ def handle_message(message):
             'socket_timeout': 30,
             'retries': 3,
         }
+        
+        # 🍪 کوکی برای اینستاگرام
+        if "instagram.com" in url and INSTA_COOKIES:
+            ydl_opts['cookiefile'] = COOKIE_FILE
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -115,14 +117,14 @@ def handle_message(message):
         print(f"✅ {final_file}")
         
     except Exception as e:
-        error_msg = str(e)[:150]
+        error_msg = str(e)[:200]
         print(f"❌ {error_msg}")
         try:
             bot.edit_message_text(f"❌ خطا:\n`{error_msg}`", message.chat.id, loading_msg.message_id, parse_mode='Markdown')
         except:
             pass
 
-print("🤖 InstaTubeGrabber Free Bot | 24/7 | Proxy Rotation")
+print("🤖 InstaTubeGrabber Free Bot | 24/7 | Cookie Mode")
 while True:
     try:
         bot.infinity_polling(timeout=60, long_polling_timeout=30)
