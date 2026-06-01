@@ -1,26 +1,28 @@
 import os
 import sys
 import time
+import random
 import telebot
-from telebot import types
 from telebot import apihelper
 import yt_dlp
 import uuid
 
 TOKEN = os.environ.get("BOT_TOKEN")
-
-# افزایش تایم‌اوت
 apihelper.READ_TIMEOUT = 60
 apihelper.CONNECT_TIMEOUT = 30
-
-bot = telebot.TeleBot(TOKEN, threaded=False)  # Single thread برای پایداری بیشتر
+bot = telebot.TeleBot(TOKEN, threaded=False)
 
 DOWNLOAD_DIR = "downloads"
 if not os.path.exists(DOWNLOAD_DIR):
     os.makedirs(DOWNLOAD_DIR)
 
 SUPPORTED_SITES = ["instagram.com", "youtube.com", "youtu.be", "tiktok.com", "twitter.com", "x.com"]
-DOWNLOAD_COUNT = 0  # شمارنده دانلود
+
+# سرویس‌های واسطه اینستاگرام
+INSTA_PROXIES = [
+    "ddinstagram.com",
+    "igdownloader.app",
+]
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -28,18 +30,15 @@ def send_welcome(message):
         bot.reply_to(message,
             "🎬 *InstaTubeGrabber Free Bot*\n\n"
             "سلام! 👋\n"
-            "لینک ویدیو رو برام بفرست.\n\n"
             "📷 اینستاگرام | ▶️ یوتیوب | 🎵 تیک‌تاک | 🐦 توییتر\n\n"
-            "⚠️ اینستاگرام: بعد از دانلود ری‌استارت میشه\n"
-            "🟢 بقیه: بدون محدودیت",
+            "💡 با سرویس‌های چرخشی برای دور زدن محدودیت",
             parse_mode='Markdown'
         )
     except:
-        pass  # اگه نتونست پیام بده، بی‌خیال شو
+        pass
 
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    global DOWNLOAD_COUNT
     url = message.text.strip()
     
     if not any(site in url for site in SUPPORTED_SITES):
@@ -49,7 +48,6 @@ def handle_message(message):
             pass
         return
     
-    # ارسال پیام با تلاش مجدد
     loading_msg = None
     for attempt in range(3):
         try:
@@ -62,6 +60,12 @@ def handle_message(message):
         return
     
     try:
+        # 🔄 استفاده از سرویس واسطه برای اینستاگرام
+        if "instagram.com" in url:
+            proxy_service = random.choice(INSTA_PROXIES)
+            url = url.replace("instagram.com", proxy_service)
+            print(f"🔄 Using: {proxy_service}")
+        
         unique_id = str(uuid.uuid4())[:8]
         output_path = os.path.join(DOWNLOAD_DIR, f"video_{unique_id}.%(ext)s")
         
@@ -79,15 +83,11 @@ def handle_message(message):
             info = ydl.extract_info(url, download=True)
             final_file = ydl.prepare_filename(info)
         
-        # پیدا کردن فایل
         if not os.path.exists(final_file):
             for f in os.listdir(DOWNLOAD_DIR):
                 if f.startswith(f"video_{unique_id}"):
                     final_file = os.path.join(DOWNLOAD_DIR, f)
                     break
-        
-        if not os.path.exists(final_file):
-            raise Exception("فایل دانلود نشد!")
         
         file_size = os.path.getsize(final_file)
         if file_size > 50 * 1024 * 1024:
@@ -98,27 +98,13 @@ def handle_message(message):
             os.remove(final_file)
             return
         
-        # آپلود با تلاش مجدد
         try:
-            bot.edit_message_text("📤 در حال آپلود...", message.chat.id, loading_msg.message_id)
+            bot.edit_message_text("📤 آپلود...", message.chat.id, loading_msg.message_id)
         except:
             pass
         
-        for attempt in range(3):
-            try:
-                with open(final_file, 'rb') as video:
-                    bot.send_video(
-                        message.chat.id,
-                        video,
-                        caption=f"✅ دانلود شد!\n📌 {url}",
-                        reply_to_message_id=message.message_id,
-                        timeout=60
-                    )
-                break
-            except Exception as e:
-                if attempt == 2:
-                    raise e
-                time.sleep(3)
+        with open(final_file, 'rb') as video:
+            bot.send_video(message.chat.id, video, caption=f"✅ دانلود شد!\n📌 {url}", reply_to_message_id=message.message_id, timeout=60)
         
         try:
             bot.delete_message(message.chat.id, loading_msg.message_id)
@@ -126,45 +112,20 @@ def handle_message(message):
             pass
         
         os.remove(final_file)
-        DOWNLOAD_COUNT += 1
-        print(f"✅ دانلود #{DOWNLOAD_COUNT}: {final_file}")
-        
-        # ری‌استارت برای اینستاگرام
-        if "instagram.com" in url:
-            print("🔄 ری‌استارت برای ریست Rate-Limit...")
-            try:
-                bot.send_message(message.chat.id, "✅ دانلود شد! ربات برای دانلود بعدی ری‌استارت میشه...")
-            except:
-                pass
-            time.sleep(2)
-            os._exit(0)
+        print(f"✅ {final_file}")
         
     except Exception as e:
         error_msg = str(e)[:150]
-        print(f"❌ خطا: {error_msg}")
+        print(f"❌ {error_msg}")
         try:
-            bot.edit_message_text(
-                f"❌ خطا:\n`{error_msg}`\n\n🔄 ربات ری‌استارت میشه...",
-                message.chat.id,
-                loading_msg.message_id,
-                parse_mode='Markdown'
-            )
+            bot.edit_message_text(f"❌ خطا:\n`{error_msg}`", message.chat.id, loading_msg.message_id, parse_mode='Markdown')
         except:
             pass
-        
-        # ری‌استارت حتی در صورت خطا (برای اینستاگرام)
-        if "instagram.com" in url:
-            time.sleep(2)
-            os._exit(0)
 
-# ====== اجرا با مدیریت خطا ======
-print("🤖 InstaTubeGrabber Free Bot | 24/7 | Auto-Restart")
-print(f"📊 Started at: {time.strftime('%Y-%m-%d %H:%M:%S')}")
-
+print("🤖 InstaTubeGrabber Free Bot | 24/7 | Proxy Rotation")
 while True:
     try:
         bot.infinity_polling(timeout=60, long_polling_timeout=30)
     except Exception as e:
-        print(f"⚠️ Connection error: {e}")
-        print("🔄 Restarting in 5 seconds...")
+        print(f"⚠️ {e}")
         time.sleep(5)
