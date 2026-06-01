@@ -80,6 +80,7 @@ def handle_message(message):
         # 🍪 کوکی برای اینستاگرام
         if "instagram.com" in url and INSTA_COOKIES:
             ydl_opts['cookiefile'] = COOKIE_FILE
+            print("🍪 دانلود اینستاگرام با کوکی")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
