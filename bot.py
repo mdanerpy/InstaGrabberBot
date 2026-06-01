@@ -8,6 +8,7 @@ import uuid
 
 TOKEN = os.environ.get("BOT_TOKEN")
 INSTA_COOKIES = os.environ.get("INSTA_COOKIES", "")
+YT_COOKIES = os.environ.get("YT_COOKIES", "")
 
 apihelper.READ_TIMEOUT = 60
 apihelper.CONNECT_TIMEOUT = 30
@@ -17,14 +18,19 @@ DOWNLOAD_DIR = "downloads"
 if not os.path.exists(DOWNLOAD_DIR):
     os.makedirs(DOWNLOAD_DIR)
 
-# ساخت فایل کوکی از Secret
-COOKIE_FILE = "instagram_cookies.txt"
+# کوکی اینستاگرام
+COOKIE_FILE_INSTA = "instagram_cookies.txt"
 if INSTA_COOKIES:
-    with open(COOKIE_FILE, "w") as f:
+    with open(COOKIE_FILE_INSTA, "w") as f:
         f.write(INSTA_COOKIES)
-    print("✅ کوکی اینستاگرام بارگذاری شد")
-else:
-    print("⚠️ کوکی اینستاگرام تنظیم نشده")
+    print("✅ کوکی اینستاگرام")
+
+# کوکی یوتیوب
+COOKIE_FILE_YT = "youtube_cookies.txt"
+if YT_COOKIES:
+    with open(COOKIE_FILE_YT, "w") as f:
+        f.write(YT_COOKIES)
+    print("✅ کوکی یوتیوب")
 
 SUPPORTED_SITES = ["instagram.com", "youtube.com", "youtu.be", "tiktok.com", "twitter.com", "x.com"]
 
@@ -77,10 +83,13 @@ def handle_message(message):
             'retries': 3,
         }
         
-        # 🍪 کوکی برای اینستاگرام
+        # 🍪 کوکی مناسب
         if "instagram.com" in url and INSTA_COOKIES:
-            ydl_opts['cookiefile'] = COOKIE_FILE
+            ydl_opts['cookiefile'] = COOKIE_FILE_INSTA
             print("🍪 دانلود اینستاگرام با کوکی")
+        elif ("youtube.com" in url or "youtu.be" in url) and YT_COOKIES:
+            ydl_opts['cookiefile'] = COOKIE_FILE_YT
+            print("🍪 دانلود یوتیوب با کوکی")
         
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -125,7 +134,7 @@ def handle_message(message):
         except:
             pass
 
-print("🤖 InstaTubeGrabber Free Bot | 24/7 | Cookie Mode")
+print("🤖 InstaTubeGrabber Free Bot | 24/7 | Dual Cookie Mode")
 while True:
     try:
         bot.infinity_polling(timeout=60, long_polling_timeout=30)
